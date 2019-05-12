@@ -6,9 +6,9 @@
 #include <DHT_U.h>
 #include <ArduinoJson.h>
 #include <Scheduler.h>
-// #include "./DHTTask.cpp"
 #define FIREBASE_HOST "smartfarm-50309.firebaseio.com"
 #define FIREBASE_AUTH "E8Mq53C112QdluHI32ANRaZyVXsIlLFvsIpDVat4"
+String FIREBASE_PATH = "/users/qweasdzxc";
 #define DHTTYPE DHT11
 
 #define DHTPIN D3
@@ -18,17 +18,16 @@
 #define WIFI_PASSWORD "eyeshield"
 unsigned long sendDataPrevMillis = 0;
 
-String path = "/users/qweasdzxc";
-
 uint16_t count = 0;
 FirebaseData firebaseData;
 DHT dht(DHTPIN, DHTTYPE);
 
 class DHTTask : public Task
 {
+
   void DHTRunning()
   {
-    delay(2000);
+    delay(30000);
 
     // Reading temperature or humidity takes about 250 milliseconds!
     // Sensor readings may also be up to 2 seconds 'old' (its a very slow sensor)
@@ -49,7 +48,6 @@ class DHTTask : public Task
     float hif = dht.computeHeatIndex(f, h);
     // Compute heat index in Celsius (isFahreheit = false)
     float hic = dht.computeHeatIndex(t, h, false);
-
     Serial.print(F("Humidity: "));
     Serial.print(h);
     Serial.print(F("%  Temperature: "));
@@ -61,11 +59,13 @@ class DHTTask : public Task
     Serial.print(F("°C "));
     Serial.print(hif);
     Serial.println(F("°F"));
+    Firebase.setDouble(firebaseData, FIREBASE_PATH + "/temperature/", t);
   }
 
 protected:
   void setup()
   {
+    // setupFirebase();
     dht.begin();
   }
   void loop()
@@ -84,7 +84,7 @@ class FirebaseTask : public Task
     Firebase.begin(FIREBASE_HOST, FIREBASE_AUTH);
     Firebase.reconnectWiFi(true);
     Firebase.setMaxRetry(firebaseData, 3);
-    String path = "/users/qweasdzxc";
+    String path = FIREBASE_PATH;
     String jsonStr;
     Serial.println("----------");
     Serial.println("path exist test...");
@@ -147,7 +147,7 @@ class FirebaseTask : public Task
         deserializeJson(doc, firebaseData.jsonData());
         bool isWaterOn = doc["isWaterOn"];
         digitalWrite(D1, !isWaterOn);
-        Serial.println(isWaterOn);
+        Serial.println(firebaseData.jsonData());
       }
 
       Serial.println("------------------------------------");
@@ -190,7 +190,6 @@ void setup()
   pinMode(2, OUTPUT);
   pinMode(D1, OUTPUT);
   setupWifi();
-  // setupFirebase();
 
   Scheduler.start(&dht_task);
   Scheduler.start(&firebase_task);
